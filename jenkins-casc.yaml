@@ -1,0 +1,73 @@
+# JCasC config for a Jenkins controller.
+# Install the listed plugins before loading this file; this list is documentation only.
+# Example: jenkins-plugin-cli --plugins configuration-as-code job-dsl workflow-aggregator maven-plugin nodejs docker-workflow
+#
+# The Docker CLI itself must be installed on agents that build Docker images.
+
+jenkins:
+  systemMessage: "Jenkins configured with Configuration as Code"
+  numExecutors: 2
+  mode: NORMAL
+  quietPeriod: 5
+  scmCheckoutRetryCount: 2
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+tool:
+  maven:
+    installations:
+      - name: "Maven 3.9"
+        properties:
+          - installSource:
+              installers:
+                - maven:
+                    id: "3.9.9"
+  nodejs:
+    installations:
+      - name: "Node.js 22"
+        properties:
+          - installSource:
+              installers:
+                - nodeJSInstaller:
+                    id: "22.14.0"
+                    npmPackagesRefreshHours: 72
+  dockerTool:
+    installations:
+      - name: "Docker CLI"
+        home: "/usr/bin/docker"
+
+jobs:
+  - script: |
+      pipelineJob('example-pipeline') {
+        definition {
+          cps {
+            script('''pipeline {
+              agent any
+              options {
+                timeout(time: 30, unit: 'MINUTES')
+              }
+              tools {
+                nodejs 'Node.js 22'
+                maven 'Maven 3.9'
+              }
+              stages {
+                stage('Checkout') {
+                  steps {
+                    checkout scm
+                  }
+                }
+                stage('Build') {
+                  steps {
+                    sh 'npm ci'
+                    sh 'npm test'
+                    sh 'npm run build'
+                  }
+                }
+              }
+            }''')
+            sandbox()
+          }
+        }
+      }
