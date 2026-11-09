@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'docker.io/your-dockerhub-user/myapp:latest'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'npm ci'
+                sh 'npm run build'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'npm test'
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'master'
+            }
+            steps {
+                sh 'docker build -t "$IMAGE_NAME" .'
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-registry-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login docker.io \
+                            --username "$DOCKER_USER" --password-stdin
+                        docker push "$IMAGE_NAME"
+                    '''
+                }
+            }
+        }
+    }
+}
